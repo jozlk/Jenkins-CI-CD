@@ -4,7 +4,7 @@ pipeline {
     stages {
         stage('Declarative: Checkout SCM') {
             steps {
-                git ''
+                git 'https://github.com/jozlk/Jenkins-CI-CD.git'
             }
         }
 
