@@ -1,64 +1,78 @@
 pipeline {
     agent any
 
-    stages {
-        stage('Declarative: Checkout SCM') {
-            steps {
-                git 'https://github.com/jozlk/Jenkins-CI-CD.git'
-            }
-        }
+    environment {
+        // Définir les variables d'environnement nécessaires
+        APP_NAME = 'mon-application'
+        DOCKER_IMAGE = 'mon-image-docker'
+    }
 
-        stage('Git Checkout') {
+    stages {
+        stage('Checkout') {
             steps {
-                echo 'Cloning the repository...'
-                sh 'https://github.com/jozlk/Jenkins-CI-CD.git'
+                // Cloner le dépôt Git
+                git 'git@github.com:jozlk/Jenkins-CI-CD.git'
             }
         }
 
         stage('Build') {
             steps {
-                echo 'Building the project...'
-                sh './build.sh'  // Commande pour construire le projet
-            }
-        }
-
-        stage('Unit Test') {
-            steps {
-                echo 'Running unit tests...'
-                sh 'ansible-playbook unit_tests.yml'
-            }
-            post {
-                always {
-                    junit 'reports/*.xml'
+                script {
+                    // Exemple pour construire une application Java avec Maven
+                    sh 'mvn clean package'
                 }
             }
         }
 
-        stage('Integration Test') {
+        stage('Test') {
             steps {
-                echo 'Running integration tests...'
-                sh 'ansible-playbook integration_tests.yml'
+                script {
+                    // Exemple pour exécuter les tests unitaires avec Maven
+                    sh 'mvn test'
+                }
             }
         }
 
-        stage('Creating Database') {
+        stage('Build Docker Image') {
             steps {
-                echo 'Creating the database...'
-                sh 'ansible-playbook create_database.yml'
+                script {
+                    // Construire une image Docker
+                    sh "docker build -t ${DOCKER_IMAGE} ."
+                }
+            }
+        }
+
+        stage('Push Docker Image') {
+            steps {
+                script {
+                    // Pousser l'image Docker vers un registre Docker (ex. Docker Hub)
+                    withCredentials([usernamePassword(credentialsId: 'docker-hub-credentials', usernameVariable: 'DOCKER_USERNAME', passwordVariable: 'DOCKER_PASSWORD')]) {
+                        sh 'echo $DOCKER_PASSWORD | docker login -u $DOCKER_USERNAME --password-stdin'
+                        sh "docker push ${DOCKER_IMAGE}"
+                    }
+                }
             }
         }
 
         stage('Deploy') {
             steps {
-                echo 'Deploying the application...'
-                sh 'ansible-playbook deploy.yml'
+                script {
+                    // Exemple de déploiement avec Ansible
+                    sh 'ansible-playbook -i inventory/production deploy.yml'
+                }
             }
         }
     }
 
     post {
-        always {
-            echo 'Pipeline terminé !'
+        success {
+            // Actions à effectuer si le pipeline réussit
+            echo 'Le pipeline a réussi !'
+        }
+        failure {
+            // Actions à effectuer si le pipeline échoue
+            echo 'Le pipeline a échoué.'
         }
     }
 }
+
