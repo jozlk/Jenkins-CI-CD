@@ -3,8 +3,8 @@ pipeline {
 
     environment {
         // Définir les variables d'environnement nécessaires
-        APP_NAME = 'mon-application'
-        DOCKER_IMAGE = 'mon-image-docker'
+        APP_NAME = 'OWASP juice shop'
+        DOCKER_IMAGE = 'bkimminich/juice-shop'
     }
 
     stages {
@@ -58,7 +58,7 @@ pipeline {
             steps {
                 script {
                     // Exemple de déploiement avec Ansible
-                    sh 'ansible-playbook -i inventory/production deploy.yml'
+                    sh 'ansible-playbook -i docker-deploy.yml'
                 }
             }
         }
