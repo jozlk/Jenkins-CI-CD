@@ -1,0 +1,70 @@
+- name: Manage Docker containers
+  hosts: "{{ NODES }}"
+  become: yes
+  vars:
+    container_image: bkimminich/juice-shop
+    container_name: juice-shop
+    container_port: 3000  # Le port sur lequel l'application écoute à l'intérieur du conteneur
+    container_expose_port: 3000  # Port exposé sur l'hôte, même si en mode host, ce paramètre peut être omis
+    container_action: 'run'
+  tasks:
+    - name: Create and Start a Docker container
+      community.docker.docker_container:
+        name: "{{ container_name }}"
+        image: "{{ container_image }}"
+        state: started
+        network_mode: host  # Utilisation du mode réseau host
+      when: container_action == 'run' 
+
+    - name: Stop Docker container
+      community.docker.docker_container:
+        name: "{{ container_name }}"
+        state: stopped
+      when: container_action == 'stop' 
+
+    - name: Remove Docker container
+      community.docker.docker_container:
+        name: "{{ container_name }}"
+        state: absent
+      when: container_action == 'stop' 
+
+- name: Verify web site running inside container
+  hosts: "{{ NODES }}"
+  become: no
+  vars:
+    container_expose_port: 3000  # Port exposé sur l'hôte, même si en mode host, ce paramètre peut être omis
+    container_action: 'run'
+  tasks:
+    - name: Verify application health
+      ansible.builtin.uri: 
+        url: http://{{ inventory_hostname }}:{{ container_expose_port }}
+        status_code: 200
+      delegate_to: localhost
+      when: container_action == 'run'
+
+- name: Scan Docker image for vulnerabilities
+  hosts: "{{ NODES }}"
+  become: no
+  vars:
+    container_image: bkimminich/juice-shop
+    report_file: "/tmp/{{ container_image | replace('/', '-') }}-vulnerability-report.json"
+  tasks:
+    - name: Ensure Trivy is installed
+      ansible.builtin.command:
+        cmd: "sudo snap install -y trivy"  # Pour Debian/Ubuntu ; ajustez selon votre système
+      become: yes
+      failed_when: false
+
+    - name: Scan Docker image for vulnerabilities
+      ansible.builtin.command:
+        cmd: trivy image --no-progress --format json "{{ container_image }}"
+      register: scan_result
+
+    - name: Save scan result to a file
+      ansible.builtin.copy:
+        content: "{{ scan_result.stdout }}"
+        dest: "{{ report_file }}"
+
+    - name: Display scan result
+      ansible.builtin.debug:
+        msg: "Vulnerability scan results are saved to {{ report_file }}"
